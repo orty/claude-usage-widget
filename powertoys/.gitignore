@@ -1,0 +1,14 @@
+# .NET / Visual Studio (the repository's own .gitignore is upstream's)
+bin/
+obj/
+.vs/
+*.user
+AppPackages/
+BundleArtifacts/
+*.msix
+*.msixbundle
+*.appx
+*.cer
+*.pfx
+# Unlike the stock C# .gitignore, launchSettings.json and *.pubxml are kept:
+# the Windows App SDK needs them to deploy the package from a fresh clone.

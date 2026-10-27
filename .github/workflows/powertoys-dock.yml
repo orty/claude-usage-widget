@@ -1,0 +1,69 @@
+# The PowerToys Command Palette Dock extension (powertoys/). This file and
+# powertoys/ are the only things the PowerToys branch adds to upstream.
+name: PowerToys Dock
+
+on:
+  push:
+    paths: ['powertoys/**', 'src/**', '.github/workflows/powertoys-dock.yml']
+  pull_request:
+    paths: ['powertoys/**', 'src/**', '.github/workflows/powertoys-dock.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  upstream-untouched:
+    # Merging upstream stays conflict-free only while this branch changes no
+    # file of upstream's. Fails as soon as one is edited.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Compare with upstream
+        run: |
+          git remote add upstream https://github.com/niccolo-sabato/claude-usage-widget.git
+          git fetch --quiet upstream main
+          base=$(git merge-base HEAD upstream/main)
+          changed=$(git diff --name-only "$base" HEAD -- . ':(exclude)powertoys/**' ':(exclude).github/workflows/powertoys-dock.yml')
+          if [ -n "$changed" ]; then
+            echo "::error::These upstream files are modified on this branch, which will conflict on the next merge of upstream:"
+            echo "$changed"
+            exit 1
+          fi
+          echo "Only powertoys/ and this workflow differ from upstream."
+
+  bridge:
+    # Runs upstream's real widget.pyw (it needs Windows) under the bridge:
+    # the contract test fails here when upstream renames what the Dock calls.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check pillow
+      - run: python -m unittest discover -s powertoys/bridge/tests -v
+
+  extension:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        platform: [x64, ARM64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build and package (unsigned)
+        run: >
+          dotnet build powertoys/ClaudeUsageDock/ClaudeUsageDock.csproj
+          -c Release -p:Platform=${{ matrix.platform }}
+          -p:GenerateAppxPackageOnBuild=true -p:AppxPackageSigningEnabled=false
+          -p:AppxPackageDir=${{ github.workspace }}\AppPackages\
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ClaudeUsageDock-${{ matrix.platform }}-unsigned
+          path: AppPackages/**/*.msix
+          if-no-files-found: warn
