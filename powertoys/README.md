@@ -181,6 +181,23 @@ py -3 powertoys\bridge\claude_usage_bridge.py --data-dir $env:TEMP\cu-test --onc
 | `paused` | The Claude Code endpoint answered 429; the last numbers stay and it tries again later. |
 | `bridge error` | Python could not run the widget's code: check Python, Pillow and the settings. |
 
+If the extension never shows up and Windows says *"Windows cannot access the
+specified device, path, or file"* for `ClaudeUsageDock.exe`, Microsoft
+Defender's attack surface reduction rule *Block executable files unless they
+meet a prevalence, age, or trusted list criterion*
+(`01443614-cd74-433a-b99e-2ecdc07bfc25`) is blocking it: a build of your own
+is new and rare by definition. Event 1121 in *Microsoft-Windows-Windows
+Defender/Operational* confirms it. Exclude the extension from that rule, in an
+administrator PowerShell (the folder name changes with each build, hence the
+wildcard), then run **Reload**:
+
+```powershell
+Add-MpPreference -AttackSurfaceReductionOnlyExclusions 'C:\Program Files\WindowsApps\ClaudeUsageDock_*\ClaudeUsageDock.exe'
+```
+
+On a PC whose Defender is managed (Intune, Group Policy), a local exclusion is
+ignored: the exclusion has to be added there.
+
 ## Tests
 
 ```powershell
