@@ -121,15 +121,35 @@ own rules:
   **Pillow**: `py -3 -m pip install pillow`. Upstream's module imports both
   even though nothing is drawn. The installed widget's `Claude Usage.exe`
   bundles its own Python, which another program cannot use.
-- To build: Visual Studio 2022 17.14+ (or 2026) with the *.NET desktop
-  development* and *Windows application development* workloads, and Windows
-  **Developer Mode** on.
+- To build: only the **.NET 10 SDK** (`winget install Microsoft.DotNet.SDK.10`).
+  Visual Studio is optional (see below).
 
-## Build, deploy, pin
+## Build, install, pin
 
-1. Open `powertoys/ClaudeUsageDock/ClaudeUsageDock.csproj` in Visual Studio,
-   pick **x64** (or ARM64), then **Build > Deploy ClaudeUsageDock**. Building
-   alone does not register the package.
+1. From the repository folder, in PowerShell:
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File powertoys\scripts\install.ps1
+   ```
+
+   [scripts/install.ps1](scripts/install.ps1) builds the package with
+   `dotnet build`, signs it and installs it with `Add-AppxPackage`. No Visual
+   Studio, no Windows SDK, no Developer Mode. The first time, it creates a
+   self-signed certificate `CN=ClaudeUsageDock` in your own certificate store
+   (its private key cannot be exported) and Windows asks **once** for
+   administrator rights, to trust it for app packages (Local Machine >
+   Trusted People). Every later run is an **update**: the version comes from
+   the clock, so the accounts and settings survive it. Run it again after
+   each merge of upstream. `-Platform ARM64` builds for ARM.
+
+   With Visual Studio 2022 17.14+ instead (*.NET desktop development* and
+   *Windows application development* workloads, Developer Mode on): open
+   `powertoys/ClaudeUsageDock/ClaudeUsageDock.csproj`, pick x64 or ARM64, then
+   **Build > Deploy ClaudeUsageDock**. Keep to one way per PC: a Visual
+   Studio deploy registers an unsigned folder, the script installs a signed
+   package, and switching may need the old one removed first
+   (`Get-AppxPackage ClaudeUsageDock | Remove-AppxPackage`, which also deletes
+   its accounts).
 2. In Command Palette, run **Reload** (*Reload Command Palette extensions*).
 3. Type **Claude usage**, add your accounts.
 4. Right-click the Dock, **Edit Dock**, **+**, and add the *Claude usage: …*
@@ -170,5 +190,7 @@ python -m unittest discover -s powertoys/bridge/tests -v
 They run upstream's real `fetch_usage`, its Claude Code checks, its key
 rotation and its config writer, with only the network faked, in a temporary
 home that never touches a real login. On Windows they also start the bridge
-as a separate process, as the extension does. CI runs them on Windows and
-builds the extension for x64 and ARM64.
+as a separate process, as the extension does. CI runs them on Windows,
+builds the extension for x64 and ARM64, and runs `install.ps1` twice on a
+runner with its Windows SDK hidden, checking that the second run updates the
+first without losing its data.
