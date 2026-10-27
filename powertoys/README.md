@@ -32,7 +32,9 @@ What the Dock can and cannot do decides what this looks like:
   bars, so an account's band is three buttons: its name, the session
   (`5h 42% · 1h12m`: used, time left before the reset) and the week
   (`7d 17% · 2d5h`), plus the per-model limit if you turn it on. The bars
-  themselves are on the account's page.
+  themselves are on the account's page, and each figure's icon is a ring
+  gauge filled to its percentage, in the widget's own bar colours (drawn by
+  the bridge from upstream's colour constants, so they follow upstream).
 - **The Dock decides how wide a button is**, not the extension (the SDK has no
   width setting), and cuts a long title short. That is why every figure has a
   button of its own. A long account name is cut on its own button without

@@ -59,6 +59,18 @@ internal static class UsageFormat
             : local.ToString("ddd HH:mm", CultureInfo.CurrentCulture);
     }
 
+    /// <summary>The gauge image for a bar, from the bridge's set (one per 5 %); null without one.</summary>
+    public static string? GaugeFile(string? dir, string kind, UsageBar? bar)
+    {
+        if (dir is null || bar?.Percent is not { } p)
+        {
+            return null;
+        }
+
+        var step = (int)Math.Round(Math.Clamp(p, 0, 100) / 5) * 5;
+        return System.IO.Path.Combine(dir, $"{kind}-{step:000}.png");
+    }
+
     /// <summary>A short word for an error, for the band, where there is no room for a sentence.</summary>
     public static string ErrorWord(string? kind) => kind switch
     {

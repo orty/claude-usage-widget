@@ -59,7 +59,12 @@ UPSTREAM_API = (
     'plausible_key', 'set_lang', 'wlog', '_redact', '_new_id',
     'CCLoginElsewhere', 'CCLoginExpired', 'CCNoLogin', 'CCNoOrg',
     'RateLimited', 'NoActivePlan', 'AUTH_AUTO',
+    'BAR_BG', 'BAR_FILL_SESSION', 'BAR_TRACK_SESSION', 'BAR_FILL_WEEKLY',
+    'BAR_TRACK_WEEKLY', 'BAR_FILL_HIGH', 'BAR_TRACK_HIGH',
 )
+
+# The Dock's gauge icons: one per 5 %, per bar.
+GAUGE_STEP = 5
 
 
 def load_upstream(src_dir):
@@ -206,6 +211,42 @@ class Bridge:
         return {'ok': True, 'protocol': PROTOCOL, 'bridge_version': BRIDGE_VERSION,
                 'upstream_version': getattr(self.w, 'APP_VERSION', '?'),
                 'data_file': self.w.CFG}
+
+    def cmd_gauges(self, size=64):
+        """Ring gauges for the Dock buttons' icons, drawn in the widget's own
+        bar colours (fill and track per bar, the empty gray at 0 %), one image
+        per GAUGE_STEP. The folder is named after what they are drawn from, so
+        a change of colours upstream draws a new set."""
+        import hashlib
+        from PIL import Image, ImageDraw
+        w = self.w
+        bars = {'session': (w.BAR_FILL_SESSION, w.BAR_TRACK_SESSION),
+                'weekly': (w.BAR_FILL_WEEKLY, w.BAR_TRACK_WEEKLY),
+                'model': (w.BAR_FILL_HIGH, w.BAR_TRACK_HIGH)}
+        size = max(16, min(256, int(size)))
+        tag = hashlib.sha1(json.dumps([bars, w.BAR_BG, size, GAUGE_STEP]).encode()).hexdigest()[:10]
+        folder = os.path.join(os.path.dirname(os.path.abspath(w.CFG)), 'gauges-' + tag)
+        os.makedirs(folder, exist_ok=True)
+        scale = 4  # drawn large, then reduced: smooth edges
+        big = size * scale
+        inset = big * 0.10
+        ring = max(scale, int(big * 0.20))
+        box = (inset, inset, big - inset, big - inset)
+        for kind, (fill, track) in bars.items():
+            for pct in range(0, 101, GAUGE_STEP):
+                path = os.path.join(folder, f'{kind}-{pct:03d}.png')
+                if os.path.exists(path):
+                    continue
+                img = Image.new('RGBA', (big, big), (0, 0, 0, 0))
+                d = ImageDraw.Draw(img)
+                # As in the widget: the dark track only once there is usage.
+                d.arc(box, 0, 360, fill=track if pct else w.BAR_BG, width=ring)
+                if pct:
+                    d.arc(box, -90, -90 + 360 * pct / 100, fill=fill, width=ring)
+                tmp = path + '.tmp'
+                img.resize((size, size), Image.LANCZOS).save(tmp, 'PNG')
+                os.replace(tmp, path)
+        return {'ok': True, 'dir': folder, 'step': GAUGE_STEP}
 
     def cmd_accounts(self):
         return {'ok': True, 'accounts': [self._public(a) for a in self.cfg['accounts']]}

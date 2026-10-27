@@ -39,6 +39,7 @@ internal enum Segment
 internal sealed partial class AccountBandItem : ListItem
 {
     private readonly UsageService _service;
+    private string? _gauge;
 
     public AccountBandItem(AccountInfo account, Segment segment, UsageService service)
         : base(new AccountDetailsPage(account.Id, service))
@@ -46,10 +47,7 @@ internal sealed partial class AccountBandItem : ListItem
         _service = service;
         Account = account;
         Segment = segment;
-        if (segment == Segment.Name)
-        {
-            Icon = Icons.App;
-        }
+        Icon = Icons.App; // until a reading draws its gauge
 
         MoreCommands =
         [
@@ -78,6 +76,23 @@ internal sealed partial class AccountBandItem : ListItem
             Segment.Weekly => Figure(reading.Weekly, now),
             _ => Figure(reading.Model, now),
         };
+
+        // The session and the week show their percentage as a ring gauge, in
+        // the widget's bar colours; the name keeps the app icon.
+        var bar = Segment switch
+        {
+            Segment.Session => reading?.Session,
+            Segment.Weekly => reading?.Weekly,
+            Segment.Model => reading?.Model,
+            _ => null,
+        };
+        var kind = Segment switch { Segment.Session => "session", Segment.Weekly => "weekly", _ => "model" };
+        var gauge = reading is { Ok: true } ? UsageFormat.GaugeFile(_service.GaugeDir, kind, bar) : null;
+        if (gauge != _gauge)
+        {
+            _gauge = gauge;
+            Icon = gauge is null ? Icons.App : new IconInfo(gauge);
+        }
 
         if (Title != title)
         {

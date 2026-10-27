@@ -52,6 +52,9 @@ internal sealed partial class UsageService : IDisposable
 
     public IReadOnlyList<AccountInfo> Accounts => _accounts;
 
+    /// <summary>The folder of gauge icons the bridge drew, once it has.</summary>
+    public string? GaugeDir { get; private set; }
+
     /// <summary>Why the bridge itself cannot run, when it cannot.</summary>
     public string? BridgeError => _bridgeError;
 
@@ -177,6 +180,11 @@ internal sealed partial class UsageService : IDisposable
                 await ReloadAccountsAsync().ConfigureAwait(false);
             }
 
+            if (GaugeDir is null)
+            {
+                await LoadGaugesAsync().ConfigureAwait(false);
+            }
+
             foreach (var account in _accounts)
             {
                 await RefreshAsync(account.Id).ConfigureAwait(false);
@@ -185,6 +193,19 @@ internal sealed partial class UsageService : IDisposable
         finally
         {
             _refreshing.Release();
+        }
+    }
+
+    private async Task LoadGaugesAsync()
+    {
+        var answer = await _bridge.CallAsync("gauges", new JsonObject { ["size"] = 64 }).ConfigureAwait(false);
+        if (AccountInfo.Bool(answer, "ok") && AccountInfo.Str(answer, "dir") is { Length: > 0 } dir && Directory.Exists(dir))
+        {
+            GaugeDir = dir;
+        }
+        else
+        {
+            Log.Line("gauges: none, the buttons keep the app icon");
         }
     }
 

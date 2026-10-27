@@ -219,6 +219,20 @@ class BridgeTest(unittest.TestCase):
         self.assertEqual(res['error']['kind'], 'no_credentials')
         self.assertEqual(len(self.net.calls), calls)
 
+    def test_gauges(self):
+        res = self.bridge.handle({'cmd': 'gauges', 'args': {'size': 32}})
+        self.assertTrue(res['ok'], res)
+        names = sorted(os.listdir(res['dir']))
+        self.assertEqual(len(names), 3 * 21)
+        from PIL import Image
+        empty = Image.open(os.path.join(res['dir'], 'session-000.png'))
+        full = Image.open(os.path.join(res['dir'], 'session-100.png'))
+        self.assertEqual(empty.size, (32, 32))
+        # The top of the ring: the empty gray at 0 %, the session amber at 100 %.
+        top = (16, 5)
+        self.assertNotEqual(empty.getpixel(top)[:3], full.getpixel(top)[:3])
+        self.assertEqual(self.bridge.handle({'cmd': 'gauges', 'args': {'size': 32}})['dir'], res['dir'])
+
     def test_rename_and_remove(self):
         work = self.add_key_account('Work', KEY_OLD, ORG_A)
         self.assertEqual(self.bridge.handle({'cmd': 'rename', 'args': {'account_id': work['id'],
