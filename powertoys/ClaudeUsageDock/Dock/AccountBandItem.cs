@@ -34,14 +34,14 @@ internal enum Segment
 /// a long title short; in its Compact size it also hides subtitles. One
 /// short title per figure keeps every figure on screen, the way the widget
 /// shows the session and the week side by side, each with its reset.
-/// Selecting any of them opens the account's page in Command Palette's window.
+/// Selecting any of them opens the account's page.
 /// </summary>
 internal sealed partial class AccountBandItem : ListItem
 {
     private readonly UsageService _service;
 
     public AccountBandItem(AccountInfo account, Segment segment, UsageService service)
-        : base(new OpenAccountCommand(account.Id))
+        : base(new AccountDetailsPage(account.Id, service))
     {
         _service = service;
         Account = account;
@@ -54,7 +54,6 @@ internal sealed partial class AccountBandItem : ListItem
         MoreCommands =
         [
             new CommandContextItem(new RefreshAccountCommand(account.Id, service)),
-            new CommandContextItem(new AccountDetailsPage(account.Id, service)) { Title = "Show usage here (Dock popup)" },
             new CommandContextItem(SetKeyForm.Page(account, service)),
             new CommandContextItem(new OpenUrlCommand("https://claude.ai/settings/usage") { Name = "Open usage on claude.ai" }),
         ];
