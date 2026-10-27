@@ -75,7 +75,7 @@ git fetch upstream
 git checkout main
 git merge --ff-only upstream/main      # or "Sync fork" on GitHub
 git push origin main
-git checkout <powertoys branch>
+git checkout powertoys
 git merge main                          # merge, not rebase: the branch is shared
 python -m unittest discover -s powertoys/bridge/tests   # the contract with upstream
 git push
