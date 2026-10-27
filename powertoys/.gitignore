@@ -12,3 +12,4 @@ BundleArtifacts/
 *.pfx
 # Unlike the stock C# .gitignore, launchSettings.json and *.pubxml are kept:
 # the Windows App SDK needs them to deploy the package from a fresh clone.
+.mono/
