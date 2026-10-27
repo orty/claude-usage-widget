@@ -64,7 +64,14 @@ public sealed partial class ClaudeUsageCommandsProvider : CommandProvider
     /// <summary>Lets a pinned band, or a pinned account page, be found again by its id.</summary>
     public override ICommandItem? GetCommandItem(string id) =>
         _bands.All.FirstOrDefault(b => b.Command?.Id == id)
-        ?? _topLevel.FirstOrDefault(t => t.Command?.Id == id);
+        ?? _topLevel.FirstOrDefault(t => t.Command?.Id == id)
+        ?? AccountPage(id);
+
+    /// <summary>An account's page by its id, for a band button that opens it in the main window.</summary>
+    private CommandItem? AccountPage(string id) =>
+        _service.Accounts.FirstOrDefault(a => AccountDetailsPage.IdFor(a.Id) == id) is { } account
+            ? new CommandItem(new AccountDetailsPage(account.Id, _service)) { Title = account.Name }
+            : null;
 
     /// <summary>
     /// Applies an update to the live band items. A band item's PropChanged

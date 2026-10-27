@@ -162,3 +162,24 @@ internal sealed partial class RemoveAccountCommand : InvokableCommand
         },
     });
 }
+
+/// <summary>
+/// Opens an account's page in Command Palette's own window. The Dock shows a
+/// page a band item opens directly in a popup that it places itself, and on
+/// some setups places partly off-screen; the main window is always on screen.
+/// </summary>
+internal sealed partial class OpenAccountCommand : InvokableCommand
+{
+    private readonly string _pageId;
+
+    public OpenAccountCommand(string accountId)
+    {
+        _pageId = AccountDetailsPage.IdFor(accountId);
+        Id = $"com.claudeusage.dock.open.{accountId}";
+        Name = "Show usage";
+        Icon = Icons.App;
+    }
+
+    public override ICommandResult Invoke() =>
+        CommandResult.GoToPage(new GoToPageArgs { PageId = _pageId, NavigationMode = NavigationMode.Push });
+}

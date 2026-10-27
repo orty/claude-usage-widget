@@ -19,7 +19,7 @@ internal sealed partial class AccountDetailsPage : ContentPage
     {
         _accountId = accountId;
         _service = service;
-        Id = $"com.claudeusage.dock.details.{accountId}";
+        Id = IdFor(accountId);
         Name = "Show usage";
         Title = "Claude usage";
         Icon = Icons.App;
@@ -29,6 +29,8 @@ internal sealed partial class AccountDetailsPage : ContentPage
             Commands = [.. Commands, new CommandContextItem(SetKeyForm.Page(account, service))];
         }
     }
+
+    public static string IdFor(string accountId) => $"com.claudeusage.dock.details.{accountId}";
 
     public override IContent[] GetContent()
     {
