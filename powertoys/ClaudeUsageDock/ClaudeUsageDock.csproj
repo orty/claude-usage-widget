@@ -61,6 +61,9 @@
          read the installed Windows SDK, which a build with only the .NET SDK
          does not have (scripts/install.ps1). -->
     <CsWinRTGenerateProjection>false</CsWinRTGenerateProjection>
+    <!-- The trimmer rewrites the toolkit's Windows PDB through the native
+         symbol writer, which crashes (0xC0000005) on some runners. -->
+    <TrimmerRemoveSymbols>true</TrimmerRemoveSymbols>
     <WarningsNotAsErrors>IL2081;$(WarningsNotAsErrors)</WarningsNotAsErrors>
   </PropertyGroup>
 
