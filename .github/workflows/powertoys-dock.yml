@@ -67,3 +67,40 @@ jobs:
           name: ClaudeUsageDock-${{ matrix.platform }}-unsigned
           path: AppPackages/**/*.msix
           if-no-files-found: warn
+
+  install-without-visual-studio:
+    # What powertoys/scripts/install.ps1 promises, end to end: with the
+    # Windows SDK hidden, it builds, signs and installs; a second run is an
+    # update that keeps the extension's data.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Hide the Windows SDK the runner comes with
+        shell: pwsh
+        run: Rename-Item 'C:\Program Files (x86)\Windows Kits\10' 'Windows Kits 10 hidden'
+      - name: First install
+        shell: pwsh
+        run: ./powertoys/scripts/install.ps1
+      - name: Leave data in the package folder
+        shell: pwsh
+        run: |
+          $pfn = (Get-AppxPackage -Name ClaudeUsageDock).PackageFamilyName
+          $state = Join-Path $env:LOCALAPPDATA "Packages\$pfn\LocalState"
+          New-Item -ItemType Directory -Force $state | Out-Null
+          Set-Content (Join-Path $state 'ci-marker.txt') 'kept'
+          Start-Sleep -Seconds 3
+      - name: Second install (an update)
+        shell: pwsh
+        run: ./powertoys/scripts/install.ps1
+      - name: Data survived, working tree clean
+        shell: pwsh
+        run: |
+          $pfn = (Get-AppxPackage -Name ClaudeUsageDock).PackageFamilyName
+          if ((Get-Content (Join-Path $env:LOCALAPPDATA "Packages\$pfn\LocalState\ci-marker.txt")) -ne 'kept') { throw 'data lost on update' }
+          $dirty = git status --porcelain
+          if ($dirty) { throw "the script left changes: $dirty" }
+          Get-AppxPackage -Name ClaudeUsageDock | Format-List Name, Version, PackageFamilyName, InstallLocation
+          Get-ChildItem (Join-Path (Get-AppxPackage -Name ClaudeUsageDock).InstallLocation 'bridge') -Recurse -Name
