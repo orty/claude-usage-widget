@@ -35,6 +35,7 @@
       Executable="$targetnametoken$.exe"
       EntryPoint="$targetentrypoint$">
       <uap:VisualElements
+        AppListEntry="none"
         DisplayName="Claude Usage for the Dock"
         Description="Your Claude usage limits, one Command Palette Dock band per account."
         BackgroundColor="transparent"
