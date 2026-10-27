@@ -6,8 +6,8 @@ own, and one more band shows them all side by side.
 
 ```
  ┌────────────────────────────────────────────────────────────── Dock ──┐
- │  ⌂  WinGet │            │ Work 42%         Personal 7%   │  CPU  13:45 │
- │            │            │ resets in 1h 12m resets in 4h  │             │
+ │  ⌂ WinGet │ ✳ Work  5h 42% · 1h12m  7d 17% · 2d5h │ ✳ Personal  5h 7% · 4h03m … │
+ │           │   pro   resets 14:30    resets Sat 11:00 │                             │
  └──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -27,10 +27,19 @@ and [Adding Dock support](https://learn.microsoft.com/windows/powertoys/command-
 
 What the Dock can and cannot do decides what this looks like:
 
-- A band shows **text** (a title and a subtitle) and an icon, and repaints
-  when they change. It cannot draw the widget's coloured bars, so the band
-  says `Work 42%`, optionally with a text meter (`Work ▰▰▱▱▱ 42%`) or all three
-  limits (`Work 42% · 17% · 8%`). The bars themselves are on the account's page.
+- A band is a row of buttons that show **text** (a title and a subtitle) and
+  an icon, and repaint when they change. It cannot draw the widget's coloured
+  bars, so an account's band is three buttons: its name, the session
+  (`5h 42% · 1h12m`: used, time left before the reset) and the week
+  (`7d 17% · 2d5h`), plus the per-model limit if you turn it on. The bars
+  themselves are on the account's page.
+- **The Dock decides how wide a button is**, not the extension (the SDK has no
+  width setting), and cuts a long title short. That is why every figure has a
+  button of its own. A long account name is cut on its own button without
+  hiding the numbers; rename the account (Work, Perso…) to see all of it.
+- In the Dock's **Compact** size (Command Palette settings > Dock > Size),
+  subtitles are hidden. The time left is in the titles, so nothing is lost;
+  the Default size adds the reset clock (`resets 14:30`) under each figure.
 - The Dock asks an extension for its bands **without any context** (no
   monitor, no instance), and shows a pinned band the same on every monitor.
   So "an instance per account" is "a band per account": add accounts in
@@ -158,7 +167,7 @@ own rules:
 
 Settings (Command Palette settings > Extensions > Claude Usage): refresh
 interval (5 min by default; the Claude Code endpoint is rate limited, so keep
-3 min or more with several accounts), what the band shows, the Python to use,
+3 min or more with several accounts), whether to show the per-model limit, the Python to use,
 and the widget source folder.
 
 ## Troubleshooting

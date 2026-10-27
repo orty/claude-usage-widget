@@ -41,38 +41,17 @@ internal sealed class DockSettings : JsonSettingsManager
         Value = "5",
     };
 
-    private readonly ChoiceSetSetting _title = new(
-        "dockTitle",
-        "On the band",
-        "What each account's band shows next to its name.",
-        [
-            new ChoiceSetSetting.Choice("Session %", TitleStyle.Session),
-            new ChoiceSetSetting.Choice("Session meter and %", TitleStyle.Meter),
-            new ChoiceSetSetting.Choice("Session, weekly and model %", TitleStyle.All),
-        ])
-    {
-        Value = TitleStyle.Session,
-    };
-
-    private readonly ChoiceSetSetting _subtitle = new(
-        "dockSubtitle",
-        "Under it",
-        "The band's second line (shown when the Dock shows subtitles).",
-        [
-            new ChoiceSetSetting.Choice("Time until the session resets", SubtitleStyle.SessionReset),
-            new ChoiceSetSetting.Choice("Weekly %", SubtitleStyle.Weekly),
-            new ChoiceSetSetting.Choice("Nothing", SubtitleStyle.None),
-        ])
-    {
-        Value = SubtitleStyle.SessionReset,
-    };
+    private readonly ToggleSetting _model = new(
+        "dockModel",
+        "Show the per-model weekly limit",
+        "Adds a button for the model-specific 7-day limit (Sonnet or Opus, as in the widget) after the session and the week.",
+        false);
 
     public DockSettings()
     {
         FilePath = Path.Combine(Log.Folder, "settings.json");
         Settings.Add(_refresh);
-        Settings.Add(_title);
-        Settings.Add(_subtitle);
+        Settings.Add(_model);
         Settings.Add(_python);
         Settings.Add(_upstream);
         LoadSettings();
@@ -93,21 +72,5 @@ internal sealed class DockSettings : JsonSettingsManager
     public TimeSpan RefreshInterval =>
         TimeSpan.FromMinutes(int.TryParse(_refresh.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var m) && m > 0 ? m : 5);
 
-    public string Title => _title.Value ?? TitleStyle.Session;
-
-    public string Subtitle => _subtitle.Value ?? SubtitleStyle.SessionReset;
-}
-
-internal static class TitleStyle
-{
-    public const string Session = "session";
-    public const string Meter = "meter";
-    public const string All = "all";
-}
-
-internal static class SubtitleStyle
-{
-    public const string SessionReset = "reset";
-    public const string Weekly = "weekly";
-    public const string None = "none";
+    public bool ShowModel => _model.Value;
 }

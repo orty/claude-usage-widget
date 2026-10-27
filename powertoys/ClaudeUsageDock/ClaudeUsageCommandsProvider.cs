@@ -52,7 +52,7 @@ public sealed partial class ClaudeUsageCommandsProvider : CommandProvider
         _service.AccountsChanged += RebuildBands;
         _service.ReadingChanged += id => Render(b => b.RenderAccount(id));
         _service.Ticked += () => Render(b => b.RenderAll());
-        _settings.Changed += () => Render(b => b.RenderAll());
+        _settings.Changed += RebuildBands; // the set of buttons may change
         RebuildBands();
         _service.Start();
     }
@@ -137,18 +137,21 @@ public sealed partial class ClaudeUsageCommandsProvider : CommandProvider
             var items = new Dictionary<string, List<AccountBandItem>>();
             var bands = new List<ICommandItem>();
             var together = new List<IListItem>();
+            Segment[] segments = settings.ShowModel
+                ? [Segment.Name, Segment.Session, Segment.Weekly, Segment.Model]
+                : [Segment.Name, Segment.Session, Segment.Weekly];
             foreach (var account in service.Accounts)
             {
                 // The band's id is the account's, so a pinned band stays
                 // pinned across restarts and renames.
-                var solo = new AccountBandItem(account, service, settings);
-                bands.Add(new WrappedDockItem([solo], $"com.claudeusage.dock.band.{account.Id}", $"Claude usage: {account.Name}"));
-                var inAll = new AccountBandItem(account, service, settings);
-                together.Add(inAll);
-                items[account.Id] = [solo, inAll];
+                var solo = segments.Select(s => new AccountBandItem(account, s, service)).ToList();
+                bands.Add(new WrappedDockItem([.. solo], $"com.claudeusage.dock.band.{account.Id}", $"Claude usage: {account.Name}"));
+                var inAll = segments.Select(s => new AccountBandItem(account, s, service)).ToList();
+                together.AddRange(inAll);
+                items[account.Id] = [.. solo, .. inAll];
             }
 
-            if (together.Count > 1)
+            if (service.Accounts.Count > 1)
             {
                 bands.Add(new WrappedDockItem(together.ToArray(), AllBandId, "Claude usage: every account"));
             }

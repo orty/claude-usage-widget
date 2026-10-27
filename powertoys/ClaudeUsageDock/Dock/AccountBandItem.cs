@@ -7,24 +7,50 @@ using Microsoft.CommandPalette.Extensions.Toolkit;
 
 namespace ClaudeUsageDock.Dock;
 
+/// <summary>What one button of an account's band shows.</summary>
+internal enum Segment
+{
+    /// <summary>The account's name, with the icon.</summary>
+    Name,
+
+    /// <summary>The 5-hour session: % used and the time left before it resets.</summary>
+    Session,
+
+    /// <summary>The 7-day limit: % used and the time left before it resets.</summary>
+    Weekly,
+
+    /// <summary>The per-model 7-day limit.</summary>
+    Model,
+}
+
 /// <summary>
-/// One account on the Dock. The Dock draws a band item's Title and Subtitle
-/// as text and repaints when they change (the toolkit raises PropChanged on
-/// every assignment), which is how the built-in clock band stays live; this
-/// item does the same with the usage. Selecting it opens the account's page.
+/// One button of an account's Dock band. The Dock draws a band item's Title
+/// and Subtitle as text and repaints when they change (the toolkit raises
+/// PropChanged on every assignment), which is how the built-in clock band
+/// stays live; these items do the same with the usage.
+///
+/// An account is several buttons rather than one because the Dock decides a
+/// button's width, not the extension (nothing in the SDK sets it), and cuts
+/// a long title short; in its Compact size it also hides subtitles. One
+/// short title per figure keeps every figure on screen, the way the widget
+/// shows the session and the week side by side, each with its reset.
+/// Selecting any of them opens the account's page.
 /// </summary>
 internal sealed partial class AccountBandItem : ListItem
 {
     private readonly UsageService _service;
-    private readonly DockSettings _settings;
 
-    public AccountBandItem(AccountInfo account, UsageService service, DockSettings settings)
+    public AccountBandItem(AccountInfo account, Segment segment, UsageService service)
         : base(new AccountDetailsPage(account.Id, service))
     {
         _service = service;
-        _settings = settings;
         Account = account;
-        Icon = Icons.App;
+        Segment = segment;
+        if (segment == Segment.Name)
+        {
+            Icon = Icons.App;
+        }
+
         MoreCommands =
         [
             new CommandContextItem(new RefreshAccountCommand(account.Id, service)),
@@ -36,39 +62,22 @@ internal sealed partial class AccountBandItem : ListItem
 
     public AccountInfo Account { get; }
 
-    /// <summary>Writes the latest reading on the band, touching only what changed.</summary>
+    public Segment Segment { get; }
+
+    /// <summary>Writes the latest reading on the button, touching only what changed.</summary>
     public void Render()
     {
         var reading = _service.ReadingOf(Account.Id);
         var now = DateTimeOffset.Now;
-        string title, subtitle;
-        if (reading is null)
+        var (title, subtitle) = Segment switch
         {
-            title = $"{Account.Name} …";
-            subtitle = _service.BridgeError is null ? "reading…" : "bridge error";
-        }
-        else if (!reading.Ok)
-        {
-            title = $"{Account.Name} {UsageFormat.ErrorWord(reading.ErrorKind)}";
-            subtitle = reading.ErrorMessage ?? string.Empty;
-        }
-        else
-        {
-            title = _settings.Title switch
-            {
-                TitleStyle.Meter => $"{Account.Name} {UsageFormat.Meter(reading.Session)} {UsageFormat.Percent(reading.Session)}",
-                TitleStyle.All => $"{Account.Name} {UsageFormat.Percent(reading.Session)} · {UsageFormat.Percent(reading.Weekly)}"
-                    + (reading.Model is null ? string.Empty : $" · {UsageFormat.Percent(reading.Model)}"),
-                _ => $"{Account.Name} {UsageFormat.Percent(reading.Session)}",
-            };
-            subtitle = _settings.Subtitle switch
-            {
-                SubtitleStyle.Weekly => $"7d {UsageFormat.Percent(reading.Weekly)}",
-                SubtitleStyle.None => string.Empty,
-                _ => reading.Session?.ResetsAt is null ? string.Empty
-                    : $"resets in {UsageFormat.Until(reading.Session.ResetsAt, now)}",
-            };
-        }
+            Segment.Name => (Account.Name, Account.Plan),
+            _ when reading is null => (Segment == Segment.Session ? (_service.BridgeError is null ? "…" : "bridge error") : Label(Segment) + " –", string.Empty),
+            _ when !reading.Ok => (Segment == Segment.Session ? UsageFormat.ErrorWord(reading.ErrorKind) : Label(Segment) + " –", string.Empty),
+            Segment.Session => Figure(reading.Session, now),
+            Segment.Weekly => Figure(reading.Weekly, now),
+            _ => Figure(reading.Model, now),
+        };
 
         if (Title != title)
         {
@@ -79,7 +88,22 @@ internal sealed partial class AccountBandItem : ListItem
         {
             Subtitle = subtitle;
         }
+
+        (string, string) Figure(UsageBar? bar, DateTimeOffset at)
+        {
+            var left = UsageFormat.Until(bar?.ResetsAt, at).Replace(" ", string.Empty, StringComparison.Ordinal);
+            var text = $"{Label(Segment, bar)} {UsageFormat.Percent(bar)}";
+            return (left.Length == 0 ? text : $"{text} · {left}",
+                bar?.ResetsAt is null ? string.Empty : "resets " + UsageFormat.ResetClock(bar.ResetsAt, at));
+        }
     }
+
+    private static string Label(Segment segment, UsageBar? bar = null) => segment switch
+    {
+        Segment.Session => "5h",
+        Segment.Weekly => "7d",
+        _ => bar?.Name is { Length: > 0 } name ? name : "Model",
+    };
 }
 
 internal static class Icons
