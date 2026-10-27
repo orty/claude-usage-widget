@@ -56,6 +56,11 @@
     <IsAotCompatible>true</IsAotCompatible>
     <CsWinRTAotOptimizerEnabled>true</CsWinRTAotOptimizerEnabled>
     <CsWinRTAotWarningLevel>2</CsWinRTAotWarningLevel>
+    <!-- The Command Palette toolkit already ships the projection of its winmd,
+         and Windows' own comes with the target framework. Generating one would
+         read the installed Windows SDK, which a build with only the .NET SDK
+         does not have (scripts/install.ps1). -->
+    <CsWinRTGenerateProjection>false</CsWinRTGenerateProjection>
     <WarningsNotAsErrors>IL2081;$(WarningsNotAsErrors)</WarningsNotAsErrors>
   </PropertyGroup>
 
