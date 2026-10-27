@@ -63,6 +63,7 @@ internal static class UsageFormat
     public static string ErrorWord(string? kind) => kind switch
     {
         "auth" => "key expired",
+        "no_credentials" => "needs key",
         "cc_expired" => "run claude",
         "cc_elsewhere" => "CC elsewhere",
         "cc_no_login" or "cc_no_org" => "no login",

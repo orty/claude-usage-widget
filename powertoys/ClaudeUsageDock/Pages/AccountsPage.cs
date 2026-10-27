@@ -66,7 +66,12 @@ internal sealed partial class AccountsPage : ListPage
         foreach (var account in _service.Accounts)
         {
             var reading = _service.ReadingOf(account.Id);
-            items.Add(new ListItem(new AccountDetailsPage(account.Id, _service))
+            var details = new AccountDetailsPage(account.Id, _service);
+            var keyPage = SetKeyForm.Page(account, _service);
+            // An account without a usable key opens the key form: that is
+            // the one thing to do with it.
+            var needsKey = account.Methods.Length == 0 || reading?.ErrorKind is "auth" or "no_credentials";
+            items.Add(new ListItem(needsKey ? keyPage : details)
             {
                 Title = account.Name,
                 Subtitle = Summary(account, reading, now),
@@ -80,9 +85,7 @@ internal sealed partial class AccountsPage : ListPage
                     new CommandContextItem(new RefreshAccountCommand(account.Id, _service)),
                     new CommandContextItem(new FormPage($"com.claudeusage.dock.rename.{account.Id}", "Rename",
                         "Rename " + account.Name, Icons.Rename, new RenameForm(account, _service))),
-                    new CommandContextItem(new FormPage($"com.claudeusage.dock.setKey.{account.Id}",
-                        account.HasKey ? "Replace session key" : "Add session key",
-                        "Session key for " + account.Name, Icons.Key, new SetKeyForm(account, _service))),
+                    new CommandContextItem(needsKey ? details : keyPage),
                     new CommandContextItem(new RemoveAccountCommand(account, _service)) { IsCritical = true },
                 ],
             });

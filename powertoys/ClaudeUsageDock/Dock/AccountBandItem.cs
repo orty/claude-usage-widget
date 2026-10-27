@@ -28,6 +28,7 @@ internal sealed partial class AccountBandItem : ListItem
         MoreCommands =
         [
             new CommandContextItem(new RefreshAccountCommand(account.Id, service)),
+            new CommandContextItem(SetKeyForm.Page(account, service)),
             new CommandContextItem(new OpenUrlCommand("https://claude.ai/settings/usage") { Name = "Open usage on claude.ai" }),
         ];
         Render();

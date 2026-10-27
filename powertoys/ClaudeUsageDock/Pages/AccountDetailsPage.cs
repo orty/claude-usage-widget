@@ -24,6 +24,10 @@ internal sealed partial class AccountDetailsPage : ContentPage
         Title = "Claude usage";
         Icon = Icons.App;
         Commands = [new CommandContextItem(new RefreshAccountCommand(accountId, service))];
+        if (service.Accounts.FirstOrDefault(a => a.Id == accountId) is { } account)
+        {
+            Commands = [.. Commands, new CommandContextItem(SetKeyForm.Page(account, service))];
+        }
     }
 
     public override IContent[] GetContent()

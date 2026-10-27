@@ -214,6 +214,13 @@ class Bridge:
         acc = self._find(account_id)
         if acc is None:
             return _error('unknown_account', 'No such account.')
+        if not self.w.account_methods(acc):
+            # Imported from the widget (keys are never copied) or its key
+            # removed: nothing to read with, which is not an expired key.
+            return _error('no_credentials',
+                          'This account has no session key of its own and no Claude Code login. '
+                          'Add a session key from its menu, or add the account Claude Code is '
+                          'signed in as.')
         # fetch_usage reads the active account of the config it is given: a
         # view holding this account alone, over the very same dict, so a key
         # rotation lands on the stored account.

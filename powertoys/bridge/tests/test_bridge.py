@@ -211,6 +211,13 @@ class BridgeTest(unittest.TestCase):
         self.assertNotIn(KEY_OLD, text)
         self.assertNotIn(KEY_OTHER, text)
         self.assertEqual(os.path.getmtime(self.widget_cfg), before)
+        # Without a key of its own, an imported account says so: it is not
+        # an expired key, and nothing is sent to claude.ai.
+        side = next(a for a in self.bridge.handle({'cmd': 'accounts'})['accounts'] if a['name'] == 'Side')
+        calls = len(self.net.calls)
+        res = self.bridge.handle({'cmd': 'usage', 'args': {'account_id': side['id']}})
+        self.assertEqual(res['error']['kind'], 'no_credentials')
+        self.assertEqual(len(self.net.calls), calls)
 
     def test_rename_and_remove(self):
         work = self.add_key_account('Work', KEY_OLD, ORG_A)

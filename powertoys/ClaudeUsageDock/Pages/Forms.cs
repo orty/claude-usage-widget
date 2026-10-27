@@ -69,6 +69,12 @@ internal sealed partial class SetKeyForm : FormContent
     private readonly string _accountId;
     private readonly UsageService _service;
 
+    /// <summary>The form as a page, the same everywhere it is offered.</summary>
+    public static FormPage Page(AccountInfo account, UsageService service) =>
+        new($"com.claudeusage.dock.setKey.{account.Id}",
+            account.HasKey ? "Replace session key" : "Add session key",
+            "Session key for " + account.Name, Icons.Key, new SetKeyForm(account, service));
+
     public SetKeyForm(AccountInfo account, UsageService service)
     {
         _accountId = account.Id;
@@ -80,7 +86,7 @@ internal sealed partial class SetKeyForm : FormContent
           "version": "1.5",
           "body": [
             { "type": "TextBlock", "text": {{Background.Quote("New session key for " + account.Name)}}, "weight": "bolder", "size": "medium", "wrap": true },
-            { "type": "TextBlock", "wrap": true, "isSubtle": true, "text": "The key is checked against the account first: a key of another account is refused." },
+            { "type": "TextBlock", "wrap": true, "isSubtle": true, "text": "Copy the sessionKey cookie of claude.ai with the Claude Session Key browser extension, or from the browser's DevTools (Application > Cookies). Use a key of its own, not the widget's: claude.ai renews a key as it is used and retires the old one, so a shared key stops working for one of the two. Sign in again, or in another browser profile, to get a second one. The key is checked against the account first: a key of another account is refused." },
             { "type": "Input.Text", "id": "sessionKey", "label": "Session key", "style": "password", "placeholder": "sk-ant-…", "isRequired": true, "errorMessage": "Paste the session key" }
           ],
           "actions": [ { "type": "Action.Submit", "title": "Save key" } ]
