@@ -175,7 +175,8 @@ py -3 powertoys\bridge\claude_usage_bridge.py --data-dir $env:TEMP\cu-test --onc
 
 | On the band | Meaning |
 |---|---|
-| `key expired` | The session key is no longer accepted: add a new one from the account's menu. |
+| `needs key` | The account has no session key of its own (an import never copies them) and no Claude Code login: click it in **Claude usage** to add one. |
+| `key expired` | The session key is no longer accepted: click the account in **Claude usage**, or right-click its band, to replace it. |
 | `run claude` | The Claude Code login expired: run `claude` once. |
 | `CC elsewhere` | Claude Code is signed in as another account and no saved login of this one is usable. |
 | `paused` | The Claude Code endpoint answered 429; the last numbers stay and it tries again later. |
