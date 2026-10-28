@@ -76,6 +76,26 @@ internal sealed partial class UsageService : IDisposable
                 ? $"Added {Name(a)}. Pin its band from Edit Dock."
                 : $"Saved the key for {Name(a)}, which was already listed.");
 
+    /// <summary>
+    /// The organizations a key's login can be tracked in, the default first,
+    /// or why the key cannot be used.
+    /// </summary>
+    public async Task<(IReadOnlyList<(string Id, string Name)> Choices, string? Error)> KeyOrgsAsync(string key)
+    {
+        var answer = await _bridge.CallAsync("key_orgs", new JsonObject { ["session_key"] = key }).ConfigureAwait(false);
+        if (!AccountInfo.Bool(answer, "ok"))
+        {
+            var error = answer["error"] as JsonObject;
+            return ([], (error is null ? null : AccountInfo.Str(error, "message")) ?? "The key could not be checked.");
+        }
+
+        var choices = (answer["choices"] as JsonArray ?? []).OfType<JsonObject>()
+            .Select(c => (AccountInfo.Str(c, "id") ?? string.Empty, AccountInfo.Str(c, "name") ?? string.Empty))
+            .Where(c => c.Item1.Length > 0)
+            .ToList();
+        return (choices, choices.Count == 0 ? "This login has no organization to track." : null);
+    }
+
     public Task<string> AddClaudeCodeAsync(string name) =>
         ManageAsync("add_claude_code", new JsonObject { ["name"] = name },
             a => $"Added {Name(a)}, read with the Claude Code login. Pin its band from Edit Dock.");
@@ -123,7 +143,7 @@ internal sealed partial class UsageService : IDisposable
                 // The login reads several organizations: say which ids to pick from.
                 var listed = choices.OfType<JsonObject>()
                     .Select(c => $"{AccountInfo.Str(c, "name")} ({AccountInfo.Str(c, "id")})");
-                message += " Add it again with one of these organization ids: " + string.Join(", ", listed) + ".";
+                message += " Its organizations: " + string.Join(", ", listed) + ".";
             }
 
             return message;

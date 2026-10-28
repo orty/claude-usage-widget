@@ -212,6 +212,23 @@ class BridgeTest(unittest.TestCase):
         [acc] = self.stored()['accounts']
         self.assertEqual((acc['name'], acc['session_key']), ('Work', KEY_OLD))
 
+    def test_a_login_of_two_organizations_is_offered_both(self):
+        W.fetch_account_info = lambda k: {
+            'org_id': ORG_B, 'email': 'me@x', 'name': 'Me', 'plan': 'Team',
+            'org_choices': [{'id': ORG_B, 'name': 'Powell', 'tier': ''},
+                            {'id': ORG_A, 'name': "me@x's Organization", 'tier': ''}]}
+        res = self.bridge.handle({'cmd': 'key_orgs', 'args': {'session_key': KEY_OLD}})
+        self.assertEqual(res['default'], ORG_B)
+        self.assertEqual([c['id'] for c in res['choices']], [ORG_B, ORG_A])
+        res = self.bridge.handle({'cmd': 'add_key', 'args': {'session_key': KEY_OLD, 'org_id': ORG_A}})
+        self.assertTrue(res['ok'], res)
+        acc = self.stored()['accounts'][0]
+        self.assertEqual(acc['org_id'], ORG_A)
+        self.assertEqual(acc['name'], 'Me')  # a personal org is named after its person
+        res = self.bridge.handle({'cmd': 'add_key', 'args': {'session_key': KEY_NEW, 'org_id': ORG_B}})
+        self.assertTrue(res['added'], res)
+        self.assertEqual(res['account']['name'], 'Powell')  # a team org after itself
+
     def test_set_key_refuses_a_colleagues_key(self):
         work = self.add_key_account('Work', KEY_OLD, ORG_A)
         self.login(ORG_A, 'colleague@x')

@@ -58,7 +58,7 @@ UPSTREAM_API = (
     'fetch_claude_code_profile', 'scoped_model', 'account_methods',
     'plausible_key', 'set_lang', 'wlog', '_redact', '_new_id',
     'CCLoginElsewhere', 'CCLoginExpired', 'CCNoLogin', 'CCNoOrg',
-    'RateLimited', 'NoActivePlan', 'AUTH_AUTO',
+    'RateLimited', 'NoActivePlan', 'AUTH_AUTO', 'org_account_name', 'plan_label',
     'BAR_BG', 'BAR_FILL_SESSION', 'BAR_TRACK_SESSION', 'BAR_FILL_WEEKLY',
     'BAR_TRACK_WEEKLY', 'BAR_FILL_HIGH', 'BAR_TRACK_HIGH',
 )
@@ -291,6 +291,23 @@ class Bridge:
                 'weekly': self._bar(sd.get('utilization'), sd.get('resets_at')),
                 'model': self._bar(mp, mr, mname)}
 
+    def cmd_key_orgs(self, session_key):
+        """The organizations a key's login can be tracked in, the default first,
+        so the add form can ask only when there is a choice. One login can be a
+        personal and a team account (upstream's #16); the default is the one
+        claude.ai last used, which is only a default."""
+        key = (session_key or '').strip()
+        if not self.w.plausible_key(key):
+            return _error('invalid_key', 'That is not a session key: it starts with sk-ant-.')
+        try:
+            info = self.w.fetch_account_info(key)
+        except Exception as e:
+            return {'ok': False, 'error': self._explain(e)}
+        choices = info.get('org_choices') or (
+            [{'id': info['org_id'], 'name': '', 'tier': ''}] if info.get('org_id') else [])
+        return {'ok': True, 'default': info.get('org_id') or '', 'email': info.get('email') or '',
+                'choices': [{'id': c.get('id'), 'name': c.get('name') or c.get('id')} for c in choices]}
+
     def cmd_add_key(self, session_key, name='', org_id=''):
         key = (session_key or '').strip()
         if not self.w.plausible_key(key):
@@ -319,9 +336,16 @@ class Bridge:
                                'already listed with a key. Nothing was changed. To give it this key, '
                                'use "Replace session key" on it.'),
                         account=self._public(same))
+        # A login of several organizations: an account picked in a team org is
+        # named after it, as upstream names it (org_account_name).
+        picked = next((c for c in choices if c.get('id') == org), {})
+        org_name = picked.get('name') or ''
+        # The plan is the picked organization's, not the default one's.
+        plan = info.get('plan') if org == info.get('org_id') else self.w.plan_label(picked.get('tier'))
         return self._merge({'session_key': key, 'org_id': org,
-                            'email': info.get('email') or '', 'plan': info.get('plan') or ''},
-                           (name or '').strip(), info.get('name') or info.get('email'))
+                            'email': info.get('email') or '', 'plan': plan or ''},
+                           (name or '').strip(),
+                           self.w.org_account_name({'org_name': org_name}) or info.get('name') or info.get('email'))
 
     def cmd_add_claude_code(self, name=''):
         """The account Claude Code is signed in as on this machine."""
