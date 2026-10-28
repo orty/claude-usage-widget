@@ -109,6 +109,12 @@ writer). Three ways to add one, from **Claude usage** in Command Palette:
 - **Import accounts from the Claude Usage widget.** Takes the names and
   organizations of the widget's accounts and their Claude Code link.
 
+An account is its organization **and** its login (email): the seats of a Team
+plan share one organization but each has its own usage, so a colleague's key
+is an account of its own. Adding never renames or replaces an account already
+listed: the same login added again is refused (use **Replace session key** on
+it), except an account imported without a key, which takes the key.
+
 Two rules come from how claude.ai and Claude Code behave, and are upstream's
 own rules:
 

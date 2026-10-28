@@ -72,7 +72,9 @@ internal sealed partial class UsageService : IDisposable
 
     public Task<string> AddKeyAsync(string name, string key, string orgId) =>
         ManageAsync("add_key", new JsonObject { ["name"] = name, ["session_key"] = key, ["org_id"] = orgId },
-            a => $"Added {Name(a)}. Pin its band from Edit Dock.");
+            a => AccountInfo.Bool(a, "added")
+                ? $"Added {Name(a)}. Pin its band from Edit Dock."
+                : $"Saved the key for {Name(a)}, which was already listed.");
 
     public Task<string> AddClaudeCodeAsync(string name) =>
         ManageAsync("add_claude_code", new JsonObject { ["name"] = name },

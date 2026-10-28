@@ -121,11 +121,6 @@ class Bridge:
     def _find(self, account_id):
         return next((a for a in self.cfg['accounts'] if a.get('id') == account_id), None)
 
-    def _find_org(self, org_id):
-        if not org_id:
-            return None
-        return next((a for a in self.cfg['accounts'] if a.get('org_id') == org_id), None)
-
     def _public(self, acc):
         """An account as the extension sees it: never a key, never a token."""
         return {
@@ -187,18 +182,34 @@ class Bridge:
             bar['name'] = name
         return bar
 
+    @staticmethod
+    def _same_person(acc, email):
+        """Whether a login of the same organization is this account's login.
+        The organization alone is not enough: the seats of a Team plan share
+        one organization but each has its own usage. Two known emails that
+        differ are two people; an unknown email on either side cannot tell
+        them apart, and the organization decides, as in the widget."""
+        mine = (acc.get('email') or '').strip().lower()
+        theirs = (email or '').strip().lower()
+        return not mine or not theirs or mine == theirs
+
+    def _find_identity(self, org_id, email):
+        """The account this login is: same organization and same person."""
+        if not org_id:
+            return None
+        return next((a for a in self.cfg['accounts']
+                     if a.get('org_id') == org_id and self._same_person(a, email)), None)
+
     def _merge(self, fields, label='', fallback=''):
-        """Add an account, or update the one of the same organization: as in
-        the widget, the organization decides who an account is. An account
-        already listed keeps the name it was given unless a new one is."""
-        acc = self._find_org(fields.get('org_id'))
+        """Add an account, or complete the one this login already is. An
+        account already listed keeps its name: adding never renames or
+        replaces one (renaming is the rename command's)."""
+        acc = self._find_identity(fields.get('org_id'), fields.get('email'))
         added = acc is None
         if added:
             acc = {'id': self.w._new_id(), 'auth_pref': self.w.AUTH_AUTO,
                    'name': label or fallback or 'Claude'}
             self.cfg['accounts'].append(acc)
-        elif label:
-            acc['name'] = label
         for k, v in fields.items():
             if v not in (None, '') or k not in acc:
                 acc[k] = v
@@ -297,8 +308,17 @@ class Bridge:
             # one: the user picks, as in the widget's picker.
             return dict(_error('choose_org', 'This login belongs to several organizations: '
                                              'pick the one to track.'), org_choices=choices)
-        # An account of that organization already listed takes the new key,
-        # as an account added twice in the widget is updated, not copied.
+        # The same login added twice is not a second account. One that has no
+        # key yet (imported from the widget) takes this one; one that has a
+        # key is left alone: replacing a key is "Replace session key", never
+        # a side effect of adding.
+        same = self._find_identity(org, info.get('email'))
+        if same is not None and self.w.plausible_key(same.get('session_key') or ''):
+            return dict(_error('already_listed',
+                               f'This key signs in to {same.get("name") or "an account"}, which is '
+                               'already listed with a key. Nothing was changed. To give it this key, '
+                               'use "Replace session key" on it.'),
+                        account=self._public(same))
         return self._merge({'session_key': key, 'org_id': org,
                             'email': info.get('email') or '', 'plan': info.get('plan') or ''},
                            (name or '').strip(), info.get('name') or info.get('email'))
@@ -348,10 +368,14 @@ class Bridge:
         except Exception as e:
             return {'ok': False, 'error': self._explain(e)}
         orgs = {info.get('org_id')} | {c.get('id') for c in info.get('org_choices') or []}
-        if acc.get('org_id') and acc['org_id'] not in orgs:
+        if (acc.get('org_id') and acc['org_id'] not in orgs) or not self._same_person(acc, info.get('email')):
             # The widget's rule: never store a credential under the name of
-            # an account it does not belong to.
-            return _error('wrong_account', 'This key belongs to another account.')
+            # an account it does not belong to; a colleague's seat in the same
+            # organization is another account too.
+            who = info.get('email') or info.get('name') or 'another login'
+            return _error('wrong_account', f'This key signs in as {who}, not as '
+                                           f'{acc.get("email") or acc.get("name") or "this account"}. '
+                                           'Nothing was changed.')
         acc['session_key'] = key
         acc.setdefault('org_id', info.get('org_id'))
         self._save()

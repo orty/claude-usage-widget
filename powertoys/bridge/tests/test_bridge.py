@@ -179,12 +179,46 @@ class BridgeTest(unittest.TestCase):
         self.assertTrue(res['ok'], res)
         self.assertEqual(res['account']['org_id'], ORG_B)
 
-    def test_adding_the_same_org_twice_updates(self):
-        first = self.add_key_account('Work', KEY_OLD, ORG_A)
-        second = self.add_key_account('', KEY_OTHER, ORG_A)
-        self.assertEqual(first['id'], second['id'])
-        self.assertEqual(len(self.stored()['accounts']), 1)
-        self.assertEqual(self.stored()['accounts'][0]['name'], 'Work')
+    def login(self, org, email, name='Someone'):
+        W.fetch_account_info = lambda k: {'org_id': org, 'email': email, 'name': name,
+                                          'plan': 'Max', 'org_choices': None}
+
+    def test_adding_never_replaces_an_account(self):
+        work = self.add_key_account('Work', KEY_OLD, ORG_A)
+        # The same login again: refused, Work untouched.
+        self.login(ORG_A, 'Work@x')
+        res = self.bridge.handle({'cmd': 'add_key', 'args': {'session_key': KEY_OTHER, 'name': 'Third'}})
+        self.assertEqual(res['error']['kind'], 'already_listed')
+        self.assertEqual(res['account']['id'], work['id'])
+        # A colleague's seat in the same organization: an account of its own.
+        self.login(ORG_A, 'colleague@x')
+        res = self.bridge.handle({'cmd': 'add_key', 'args': {'session_key': KEY_NEW, 'name': 'Third'}})
+        self.assertTrue(res['ok'], res)
+        self.assertTrue(res['added'])
+        accounts = {a['name']: a for a in self.stored()['accounts']}
+        self.assertEqual(sorted(accounts), ['Third', 'Work'])
+        self.assertEqual(accounts['Work']['session_key'], KEY_OLD)
+        self.assertEqual(accounts['Work']['email'], 'Work@x')
+        self.assertEqual(accounts['Third']['session_key'], KEY_NEW)
+
+    def test_adding_a_key_completes_an_imported_account(self):
+        with open(self.widget_cfg, 'w', encoding='utf-8') as f:
+            json.dump({'accounts': [{'id': '1', 'name': 'Work', 'org_id': ORG_A, 'email': 'w@x'}]}, f)
+        self.bridge.handle({'cmd': 'import_widget'})
+        self.login(ORG_A, 'w@x')
+        res = self.bridge.handle({'cmd': 'add_key', 'args': {'session_key': KEY_OLD, 'name': 'Other name'}})
+        self.assertTrue(res['ok'], res)
+        self.assertFalse(res['added'])
+        [acc] = self.stored()['accounts']
+        self.assertEqual((acc['name'], acc['session_key']), ('Work', KEY_OLD))
+
+    def test_set_key_refuses_a_colleagues_key(self):
+        work = self.add_key_account('Work', KEY_OLD, ORG_A)
+        self.login(ORG_A, 'colleague@x')
+        res = self.bridge.handle({'cmd': 'set_key', 'args': {'account_id': work['id'],
+                                                              'session_key': KEY_OTHER}})
+        self.assertEqual(res['error']['kind'], 'wrong_account')
+        self.assertEqual(self.stored()['accounts'][0]['session_key'], KEY_OLD)
 
     def test_set_key_refuses_another_accounts_key(self):
         work = self.add_key_account('Work', KEY_OLD, ORG_A)
