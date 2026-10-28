@@ -318,8 +318,13 @@ class Bridge:
             return {'ok': False, 'error': self._explain(e)}
         choices = info.get('org_choices') or []
         org = (org_id or '').strip() or info.get('org_id')
-        if org_id and choices and org not in {c.get('id') for c in choices}:
-            return _error('unknown_org', 'This login does not belong to that organization.')
+        # An organization asked for must be one the key's login reads: one
+        # with a single organization has no choices, and is checked too.
+        readable = {info.get('org_id')} | {c.get('id') for c in choices}
+        if org_id and org not in readable:
+            who = info.get('email') or info.get('name') or 'This login'
+            return _error('unknown_org', f'This key signs in as {who}, which does not belong '
+                                         'to that organization. Nothing was changed.')
         if not org:
             # The login reads several organizations and none is the obvious
             # one: the user picks, as in the widget's picker.

@@ -229,6 +229,15 @@ class BridgeTest(unittest.TestCase):
         self.assertTrue(res['added'], res)
         self.assertEqual(res['account']['name'], 'Powell')  # a team org after itself
 
+    def test_adding_refuses_an_organization_the_key_cannot_read(self):
+        # A personal key put under a team organization it is no member of
+        # (one organization, so no choices to check against).
+        self.login(ORG_A, 'me@x')
+        res = self.bridge.handle({'cmd': 'add_key', 'args': {'session_key': KEY_OLD, 'org_id': ORG_B}})
+        self.assertEqual(res['error']['kind'], 'unknown_org')
+        self.assertIn('me@x', res['error']['message'])
+        self.assertFalse(os.path.exists(W.CFG))  # nothing written
+
     def test_set_key_refuses_a_colleagues_key(self):
         work = self.add_key_account('Work', KEY_OLD, ORG_A)
         self.login(ORG_A, 'colleague@x')
