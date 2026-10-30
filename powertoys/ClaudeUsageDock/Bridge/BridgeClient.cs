@@ -63,11 +63,28 @@ internal sealed partial class BridgeClient : IDisposable
             await process.StandardInput.FlushAsync().ConfigureAwait(false);
 
             // A refresh can take a while: upstream's curl has a 20 s timeout
-            // and retries a transient failure once.
+            // and retries a transient failure once. The process's pipes are
+            // synchronous on Windows, so cancelling the read does not end it:
+            // the bridge is killed instead, which ends the read with no line.
             using var cts = new CancellationTokenSource(timeout ?? TimeSpan.FromSeconds(90));
+            using var kill = cts.Token.Register(() => Kill(process));
             while (true)
             {
-                var line = await process.StandardOutput.ReadLineAsync(cts.Token).ConfigureAwait(false);
+                string? line;
+                try
+                {
+                    line = await process.StandardOutput.ReadLineAsync(cts.Token).ConfigureAwait(false);
+                }
+                catch (IOException) when (cts.IsCancellationRequested)
+                {
+                    line = null; // the pipe broke as the bridge was killed
+                }
+
+                if (cts.IsCancellationRequested)
+                {
+                    throw new OperationCanceledException(cts.Token);
+                }
+
                 if (line is null)
                 {
                     Stop();
@@ -220,6 +237,18 @@ internal sealed partial class BridgeClient : IDisposable
         }
 
         return ("python.exe", []);
+    }
+
+    private static void Kill(Process process)
+    {
+        try
+        {
+            process.Kill(entireProcessTree: true);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or NotSupportedException)
+        {
+            // Already gone.
+        }
     }
 
     private void Stop()

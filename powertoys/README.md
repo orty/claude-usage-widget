@@ -198,6 +198,7 @@ py -3 powertoys\bridge\claude_usage_bridge.py --data-dir $env:TEMP\cu-test --onc
 | `CC elsewhere` | Claude Code is signed in as another account and no saved login of this one is usable. |
 | `paused` | The Claude Code endpoint answered 429; the last numbers stay and it tries again later. |
 | `bridge error` | Python could not run the widget's code: check Python, Pillow and the settings. |
+| `5h 22% · as of 12:39` | No reading for three refresh periods: the numbers are from that time. A bridge that stops answering is restarted after 90 s, so this should clear on its own. |
 
 If the numbers stop moving (countdowns included), look for `refreshed N
 accounts` in `extension.log`: it is written once an hour while readings run.

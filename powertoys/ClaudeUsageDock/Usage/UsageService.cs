@@ -61,6 +61,9 @@ internal sealed partial class UsageService : IDisposable
 
     public UsageReading? ReadingOf(string accountId) => _readings.GetValueOrDefault(accountId);
 
+    /// <summary>How old numbers may get before a band says when they are from: three missed refreshes.</summary>
+    public TimeSpan StaleAfter => _settings.RefreshInterval * 3;
+
     public Task RefreshAllNowAsync() => RefreshAllAsync(reloadAccounts: true);
 
     public async Task RefreshAsync(string accountId)

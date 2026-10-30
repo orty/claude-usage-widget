@@ -120,8 +120,15 @@ internal sealed partial class AccountBandItem : ListItem, INotifyPropChanged
 
         (string, string) Figure(UsageBar? bar, DateTimeOffset at)
         {
-            var left = UsageFormat.Until(bar?.ResetsAt, at).Replace(" ", string.Empty, StringComparison.Ordinal);
             var text = $"{Label(Segment, bar)} {UsageFormat.Percent(bar)}";
+            if (at - reading.At > _service.StaleAfter)
+            {
+                // No reading for a while: say when these numbers are from
+                // instead of a countdown that would pass for live.
+                return ($"{text} · as of {UsageFormat.ResetClock(reading.At, at)}", "not refreshed since");
+            }
+
+            var left = UsageFormat.Until(bar?.ResetsAt, at).Replace(" ", string.Empty, StringComparison.Ordinal);
             return (left.Length == 0 ? text : $"{text} · {left}",
                 bar?.ResetsAt is null ? string.Empty : "resets " + UsageFormat.ResetClock(bar.ResetsAt, at));
         }
