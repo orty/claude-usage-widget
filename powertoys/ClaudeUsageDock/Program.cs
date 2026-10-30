@@ -19,6 +19,7 @@ public static partial class Program
     {
         if (args.Length > 0 && args[0] == ComServerArgument)
         {
+            Log.Line("process started");
             RunComServer();
         }
         else

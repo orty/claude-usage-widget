@@ -28,6 +28,7 @@ internal sealed partial class UsageService : IDisposable
     private DateTimeOffset _lastRefresh = DateTimeOffset.MinValue;
     private DateTimeOffset _lastHeartbeat = DateTimeOffset.MinValue;
     private string? _bridgeError;
+    private bool _listed; // the bridge has answered the account list at least once
 
     public UsageService(DockSettings settings)
     {
@@ -35,6 +36,7 @@ internal sealed partial class UsageService : IDisposable
         var dataDir = Path.Combine(Log.Folder, "bridge");
         Directory.CreateDirectory(dataDir);
         _bridge = new BridgeClient(() => _settings.Python, () => _settings.Upstream, dataDir);
+        _accounts = LoadSnapshot(dataDir);
         _settings.Changed += OnSettingsChanged;
         _timer = new Timer(_ => _ = OnTickAsync(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
     }
@@ -180,7 +182,7 @@ internal sealed partial class UsageService : IDisposable
                     && new[] { r.Session, r.Weekly, r.Model }.Any(b => b?.ResetsAt is { } at && at <= now && at > r.At));
             if (due)
             {
-                await RefreshAllAsync(reloadAccounts: _accounts.Length == 0).ConfigureAwait(false);
+                await RefreshAllAsync(reloadAccounts: !_listed).ConfigureAwait(false);
             }
 
             Ticked?.Invoke();
@@ -229,6 +231,25 @@ internal sealed partial class UsageService : IDisposable
         }
     }
 
+    /// <summary>
+    /// The accounts as the bridge last listed them (it leaves a copy with no
+    /// key in it), so the bands exist from the first moment: Command Palette
+    /// asks for them before Python is up, and drops a pinned band it cannot
+    /// find. The bridge's own list replaces it at the first refresh.
+    /// </summary>
+    private static AccountInfo[] LoadSnapshot(string dataDir)
+    {
+        try
+        {
+            var node = JsonNode.Parse(File.ReadAllText(Path.Combine(dataDir, "accounts.public.json")));
+            return (node?["accounts"] as JsonArray ?? []).Select(AccountInfo.From).OfType<AccountInfo>().ToArray();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+        {
+            return []; // first start, or written by an older bridge
+        }
+    }
+
     private async Task LoadGaugesAsync()
     {
         var answer = await _bridge.CallAsync("gauges", new JsonObject { ["size"] = 64 }).ConfigureAwait(false);
@@ -254,6 +275,7 @@ internal sealed partial class UsageService : IDisposable
         }
 
         _bridgeError = null;
+        _listed = true;
         var accounts = (answer["accounts"] as JsonArray ?? []).Select(AccountInfo.From).OfType<AccountInfo>().ToArray();
         var changed = !accounts.SequenceEqual(_accounts, AccountComparer.Instance);
         _accounts = accounts;

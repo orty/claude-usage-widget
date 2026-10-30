@@ -238,6 +238,15 @@ class BridgeTest(unittest.TestCase):
         self.assertIn('me@x', res['error']['message'])
         self.assertFalse(os.path.exists(W.CFG))  # nothing written
 
+    def test_accounts_leave_a_snapshot_without_keys(self):
+        self.add_key_account('Work', KEY_OLD, ORG_A)
+        listed = self.bridge.handle({'cmd': 'accounts'})['accounts']
+        path = os.path.join(os.path.dirname(W.CFG), B.SNAPSHOT_FILE)
+        with open(path, encoding='utf-8') as f:
+            text = f.read()
+        self.assertEqual(json.loads(text)['accounts'], listed)
+        self.assertNotIn(KEY_OLD, text)
+
     def test_set_key_refuses_a_colleagues_key(self):
         work = self.add_key_account('Work', KEY_OLD, ORG_A)
         self.login(ORG_A, 'colleague@x')

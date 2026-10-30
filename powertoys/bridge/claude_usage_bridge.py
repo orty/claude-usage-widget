@@ -65,6 +65,8 @@ UPSTREAM_API = (
 
 # The Dock's gauge icons: one per 5 %, per bar.
 GAUGE_STEP = 5
+# The account list without keys, for the extension's next start.
+SNAPSHOT_FILE = 'accounts.public.json'
 
 
 def load_upstream(src_dir):
@@ -260,7 +262,21 @@ class Bridge:
         return {'ok': True, 'dir': folder, 'step': GAUGE_STEP}
 
     def cmd_accounts(self):
-        return {'ok': True, 'accounts': [self._public(a) for a in self.cfg['accounts']]}
+        accounts = [self._public(a) for a in self.cfg['accounts']]
+        self._write_snapshot(accounts)
+        return {'ok': True, 'accounts': accounts}
+
+    def _write_snapshot(self, accounts):
+        """The list as the extension last saw it, with no key in it, so its
+        next start can list the bands at once: Command Palette asks for them
+        before Python is up, and drops a pinned band it cannot find."""
+        path = os.path.join(os.path.dirname(os.path.abspath(self.w.CFG)), SNAPSHOT_FILE)
+        try:
+            with open(path + '.tmp', 'w', encoding='utf-8') as f:
+                json.dump({'accounts': accounts}, f)
+            os.replace(path + '.tmp', path)
+        except OSError as e:
+            self.w.wlog(f'BRIDGE could not write {SNAPSHOT_FILE}: {e}')
 
     def cmd_usage(self, account_id):
         acc = self._find(account_id)
