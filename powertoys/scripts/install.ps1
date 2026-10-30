@@ -14,7 +14,9 @@
     3. Builds and signs the package with a version taken from the clock, so
        every build is an update of the one installed: the accounts and
        settings the extension keeps in its package folder survive it.
-    4. Installs it. Then run "Reload" in Command Palette.
+    4. Installs it.
+    5. Reloads Command Palette once the new build has started, when its
+       "Enable external reload" setting is on; otherwise run "Reload" yourself.
 
     Run it again after every merge of upstream.
 
@@ -108,5 +110,42 @@ if (-not $installed -or $installed.Version -ne $version) {
 }
 Write-Host ''
 Write-Host "Installed $PackageName $version."
-Write-Host 'Next: in Command Palette run "Reload", type "Claude usage" to add accounts,'
-Write-Host 'then right-click the Dock > Edit Dock > + and add the "Claude usage" bands.'
+
+# 5. Command Palette starts a freshly installed extension late (its first
+#    launch takes 15-30 s, before any of its code runs) and then leaves its
+#    pinned Dock bands out, and on the main screen the Memory half of the
+#    performance band too, until a Reload. Reload it once the extension is up,
+#    through x-cmdpal://reload, which Command Palette honours only with
+#    Settings > General > For Developers > "Enable external reload" on.
+$reloaded = $false
+$cmdpal = Get-AppxPackage -Name 'Microsoft.CommandPalette' -ErrorAction SilentlyContinue
+if ($cmdpal) {
+    $cmdpalSettings = Join-Path $env:LOCALAPPDATA "Packages\$($cmdpal.PackageFamilyName)\LocalState\settings.json"
+    $allowed = $false
+    try { $allowed = [bool](Get-Content $cmdpalSettings -Raw | ConvertFrom-Json).AllowExternalReload } catch { }
+    if ($allowed) {
+        Write-Host 'Waiting for Command Palette to start the new build, then reloading it...'
+        $log = Join-Path $env:LOCALAPPDATA "Packages\$($installed.PackageFamilyName)\LocalState\extension.log"
+        $since = Get-Date
+        $deadline = $since.AddSeconds(90)
+        while ((Get-Date) -lt $deadline) {
+            Start-Sleep -Seconds 2
+            if ((Test-Path $log) -and (Get-Item $log).LastWriteTime -gt $since -and
+                (Select-String -Path $log -Pattern 'COM server started' -SimpleMatch | Select-Object -Last 1)) {
+                break
+            }
+        }
+        Start-Sleep -Seconds 3   # let Command Palette finish its late start first
+        Start-Process 'x-cmdpal://reload'
+        $reloaded = $true
+    }
+}
+
+if ($reloaded) {
+    Write-Host 'Command Palette was reloaded.'
+} else {
+    Write-Host 'Next: in Command Palette run "Reload". (Turn on Settings > General > For Developers >'
+    Write-Host '"Enable external reload" and this script reloads it for you next time.)'
+}
+Write-Host 'To add accounts, type "Claude usage" in Command Palette; to show them, right-click'
+Write-Host 'the Dock > Edit Dock > + and add the "Claude usage" bands.'

@@ -168,6 +168,12 @@ own rules:
    (`Get-AppxPackage ClaudeUsageDock | Remove-AppxPackage`, which also deletes
    its accounts).
 2. In Command Palette, run **Reload** (*Reload Command Palette extensions*).
+   After every install, too: Command Palette starts a freshly installed
+   extension late (its first launch takes 15 to 30 s, before any of its code
+   runs) and leaves its pinned bands out of the Dock, sometimes the Memory
+   half of the performance band on the main screen too, until a Reload. With
+   *Settings > General > For Developers > Enable external reload* on, the
+   script reloads it for you once the new build is up.
 3. Type **Claude usage**, add your accounts.
 4. Right-click the Dock, **Edit Dock**, **+**, and add the *Claude usage: …*
    bands you want, one per account, or *Claude usage: every account*.
@@ -205,8 +211,7 @@ accounts` in `extension.log`: it is written once an hour while readings run.
 Lines saying *dropped a subscriber whose process is gone* mean Command
 Palette's window restarted while the extension kept running; the Dock keeps
 updating through the new window. Builds before 1.0.302 (30 October 2026)
-froze there until a
-**Reload**.
+froze there until a **Reload**.
 
 If the extension never shows up and Windows says *"Windows cannot access the
 specified device, path, or file"* for `ClaudeUsageDock.exe`, Microsoft
