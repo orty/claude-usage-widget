@@ -293,10 +293,11 @@ internal sealed partial class UsageService : IDisposable
     private void Store(string accountId, JsonObject answer)
     {
         var reading = UsageReading.From(answer, DateTimeOffset.Now);
-        if (!reading.Ok && reading.ErrorKind == "rate_limited" && _readings.TryGetValue(accountId, out var previous)
-            && previous.Ok)
+        if (!reading.Ok && reading.ErrorKind is "rate_limited" or "bridge"
+            && _readings.TryGetValue(accountId, out var previous) && previous.Ok)
         {
-            // Paused by a 429: keep showing the last numbers, with the pause said.
+            // Paused by a 429, or a bridge that had to be restarted: keep the
+            // last numbers, which say how old they are once they are old.
             reading = previous with { ErrorKind = null, ErrorMessage = reading.ErrorMessage };
         }
 
