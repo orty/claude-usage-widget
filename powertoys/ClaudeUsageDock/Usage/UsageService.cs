@@ -26,6 +26,7 @@ internal sealed partial class UsageService : IDisposable
     private readonly SemaphoreSlim _refreshing = new(1, 1);
     private AccountInfo[] _accounts = [];
     private DateTimeOffset _lastRefresh = DateTimeOffset.MinValue;
+    private DateTimeOffset _lastHeartbeat = DateTimeOffset.MinValue;
     private string? _bridgeError;
 
     public UsageService(DockSettings settings)
@@ -210,6 +211,13 @@ internal sealed partial class UsageService : IDisposable
             foreach (var account in _accounts)
             {
                 await RefreshAsync(account.Id).ConfigureAwait(false);
+            }
+
+            // One line an hour, so a log shows when readings stopped.
+            if (_lastRefresh - _lastHeartbeat >= TimeSpan.FromHours(1))
+            {
+                _lastHeartbeat = _lastRefresh;
+                Log.Line($"refreshed {_accounts.Length} accounts, {_accounts.Count(a => ReadingOf(a.Id)?.Ok == true)} read");
             }
         }
         finally

@@ -7,6 +7,7 @@ using ClaudeUsageDock.Pages;
 using ClaudeUsageDock.Usage;
 using Microsoft.CommandPalette.Extensions;
 using Microsoft.CommandPalette.Extensions.Toolkit;
+using Windows.Foundation;
 
 namespace ClaudeUsageDock;
 
@@ -20,7 +21,7 @@ namespace ClaudeUsageDock;
 /// context (GetDockBands takes no argument, and the same band shows on every
 /// monitor), so the account is the only thing a band can be told apart by.
 /// </summary>
-public sealed partial class ClaudeUsageCommandsProvider : CommandProvider
+public sealed partial class ClaudeUsageCommandsProvider : CommandProvider, INotifyItemsChanged
 {
     private const string ProviderId = "com.claudeusage.dock";
     private const string AllBandId = "com.claudeusage.dock.band.all";
@@ -30,6 +31,7 @@ public sealed partial class ClaudeUsageCommandsProvider : CommandProvider
     private readonly AccountsPage _page;
     private readonly ICommandItem[] _topLevel;
     private readonly object _bandsLock = new();
+    private readonly Dock.Subscribers<IItemsChangedEventArgs> _itemsChanged = new("bands");
     private volatile Bands _bands = Bands.Empty;
 
     public ClaudeUsageCommandsProvider()
@@ -57,6 +59,16 @@ public sealed partial class ClaudeUsageCommandsProvider : CommandProvider
         _service.Start();
     }
 
+    /// <summary>
+    /// The host's subscription, kept here rather than in the toolkit's event,
+    /// which stops at a dead subscriber (see <see cref="Dock.Subscribers{TArgs}"/>).
+    /// </summary>
+    event TypedEventHandler<object, IItemsChangedEventArgs>? INotifyItemsChanged.ItemsChanged
+    {
+        add => _itemsChanged.Add(value);
+        remove => _itemsChanged.Remove(value);
+    }
+
     public override ICommandItem[] TopLevelCommands() => _topLevel;
 
     public override ICommandItem[]? GetDockBands() => _bands.All;
@@ -67,11 +79,10 @@ public sealed partial class ClaudeUsageCommandsProvider : CommandProvider
         ?? _topLevel.FirstOrDefault(t => t.Command?.Id == id);
 
     /// <summary>
-    /// Applies an update to the live band items. A band item's PropChanged
-    /// reaches the Dock over COM; when Command Palette's UI restarts while
-    /// this extension keeps running, that subscriber is dead and raising into
-    /// it throws. The bands are then rebuilt and the host asked to fetch them
-    /// again, so the Dock recovers without a manual reload.
+    /// Applies an update to the live band items. A dead subscriber (Command
+    /// Palette's window restarted while this extension kept running) is
+    /// dropped where the item raises its change; anything else that fails
+    /// rebuilds the bands and asks the host to fetch them again.
     /// </summary>
     private void Render(Action<Bands> update)
     {
@@ -100,15 +111,7 @@ public sealed partial class ClaudeUsageCommandsProvider : CommandProvider
     private void RebuildBandsLocked()
     {
         _bands = Bands.Create(_service, _settings);
-        try
-        {
-            RaiseItemsChanged(_topLevel.Length);
-        }
-        catch (Exception ex)
-        {
-            // Nobody listening yet, or the host is gone: it asks again when it comes back.
-            Log.Line($"RaiseItemsChanged failed: {ex.GetType().Name} 0x{ex.HResult:X8}");
-        }
+        _itemsChanged.Raise(this, new ItemsChangedEventArgs(_topLevel.Length));
     }
 
     public override void Dispose()

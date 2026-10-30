@@ -199,6 +199,14 @@ py -3 powertoys\bridge\claude_usage_bridge.py --data-dir $env:TEMP\cu-test --onc
 | `paused` | The Claude Code endpoint answered 429; the last numbers stay and it tries again later. |
 | `bridge error` | Python could not run the widget's code: check Python, Pillow and the settings. |
 
+If the numbers stop moving (countdowns included), look for `refreshed N
+accounts` in `extension.log`: it is written once an hour while readings run.
+Lines saying *dropped a subscriber whose process is gone* mean Command
+Palette's window restarted while the extension kept running; the Dock keeps
+updating through the new window. Builds before 1.0.302 (30 October 2026)
+froze there until a
+**Reload**.
+
 If the extension never shows up and Windows says *"Windows cannot access the
 specified device, path, or file"* for `ClaudeUsageDock.exe`, Microsoft
 Defender's attack surface reduction rule *Block executable files unless they

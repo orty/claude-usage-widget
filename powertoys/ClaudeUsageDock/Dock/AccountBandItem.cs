@@ -4,6 +4,7 @@ using ClaudeUsageDock.Pages;
 using ClaudeUsageDock.Usage;
 using Microsoft.CommandPalette.Extensions;
 using Microsoft.CommandPalette.Extensions.Toolkit;
+using Windows.Foundation;
 
 namespace ClaudeUsageDock.Dock;
 
@@ -35,9 +36,13 @@ internal enum Segment
 /// short title per figure keeps every figure on screen, the way the widget
 /// shows the session and the week side by side, each with its reset.
 /// Selecting any of them opens the account's page.
+///
+/// The Dock's subscription is kept here rather than in the toolkit's event,
+/// which stops at a dead subscriber (see <see cref="Subscribers{TArgs}"/>).
 /// </summary>
-internal sealed partial class AccountBandItem : ListItem
+internal sealed partial class AccountBandItem : ListItem, INotifyPropChanged
 {
+    private readonly Subscribers<IPropChangedEventArgs> _propChanged = new("band item");
     private readonly UsageService _service;
     private string? _gauge;
 
@@ -56,6 +61,12 @@ internal sealed partial class AccountBandItem : ListItem
             new CommandContextItem(new OpenUrlCommand("https://claude.ai/settings/usage") { Name = "Open usage on claude.ai" }),
         ];
         Render();
+    }
+
+    event TypedEventHandler<object, IPropChangedEventArgs>? INotifyPropChanged.PropChanged
+    {
+        add => _propChanged.Add(value);
+        remove => _propChanged.Remove(value);
     }
 
     public AccountInfo Account { get; }
@@ -92,16 +103,19 @@ internal sealed partial class AccountBandItem : ListItem
         {
             _gauge = gauge;
             Icon = gauge is null ? Icons.App : new IconInfo(gauge);
+            Changed(nameof(Icon));
         }
 
         if (Title != title)
         {
             Title = title;
+            Changed(nameof(Title));
         }
 
         if (Subtitle != subtitle)
         {
             Subtitle = subtitle;
+            Changed(nameof(Subtitle));
         }
 
         (string, string) Figure(UsageBar? bar, DateTimeOffset at)
@@ -112,6 +126,8 @@ internal sealed partial class AccountBandItem : ListItem
                 bar?.ResetsAt is null ? string.Empty : "resets " + UsageFormat.ResetClock(bar.ResetsAt, at));
         }
     }
+
+    private void Changed(string property) => _propChanged.Raise(this, new PropChangedEventArgs(property));
 
     private static string Label(Segment segment, UsageBar? bar = null) => segment switch
     {
