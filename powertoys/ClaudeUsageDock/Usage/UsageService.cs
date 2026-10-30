@@ -301,6 +301,14 @@ internal sealed partial class UsageService : IDisposable
             reading = previous with { ErrorKind = null, ErrorMessage = reading.ErrorMessage };
         }
 
+        var before = _readings.GetValueOrDefault(accountId);
+        if (reading.ErrorKind != before?.ErrorKind && (before is not null || !reading.Ok))
+        {
+            // Only changes, so a log says when an account broke and came back.
+            var name = _accounts.FirstOrDefault(a => a.Id == accountId)?.Name ?? accountId;
+            Log.Line(reading.Ok ? $"{name}: reading again" : $"{name}: {reading.ErrorKind}");
+        }
+
         _readings[accountId] = reading;
         ReadingChanged?.Invoke(accountId);
     }
